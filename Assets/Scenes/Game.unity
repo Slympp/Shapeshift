@@ -2461,7 +2461,6 @@ MonoBehaviour:
   scoreText: {fileID: 1021571270}
   scoreMultiplierText: {fileID: 2030263027}
   scoreMultiplierObject: {fileID: 1516943891}
-  scoreMultiplierAnimator: {fileID: 1516943893}
 --- !u!1 &1294722836
 GameObject:
   m_ObjectHideFlags: 0
@@ -2747,7 +2746,6 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 1516943892}
-  - component: {fileID: 1516943893}
   m_Layer: 5
   m_Name: ScoreMultiplier
   m_TagString: Untagged
@@ -2776,25 +2774,6 @@ RectTransform:
   m_AnchoredPosition: {x: 0, y: -170}
   m_SizeDelta: {x: 100, y: 100}
   m_Pivot: {x: 0.5, y: 0.5}
---- !u!95 &1516943893
-Animator:
-  serializedVersion: 3
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 1516943891}
-  m_Enabled: 1
-  m_Avatar: {fileID: 0}
-  m_Controller: {fileID: 9100000, guid: 5df073d547d67ad4a83bf48d3b60eaa5, type: 2}
-  m_CullingMode: 0
-  m_UpdateMode: 0
-  m_ApplyRootMotion: 0
-  m_LinearVelocityBlending: 0
-  m_WarningMessage: 
-  m_HasTransformHierarchy: 1
-  m_AllowConstantClipSamplingOptimization: 1
-  m_KeepAnimatorControllerStateOnDisable: 0
 --- !u!28 &1534481670
 Texture2D:
   m_ObjectHideFlags: 0

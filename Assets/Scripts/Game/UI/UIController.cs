@@ -1,3 +1,4 @@
+using DG.Tweening;
 using TMPro;
 using UnityEngine;
 
@@ -11,12 +12,8 @@ namespace Game.UI {
         [SerializeField] private TMP_Text scoreText;
         [SerializeField] private TMP_Text scoreMultiplierText;
         [SerializeField] private GameObject scoreMultiplierObject;
-        [SerializeField] private Animator scoreMultiplierAnimator;
         
         private int _lastScoreMultiplier = 1;
-        
-        private readonly int _scoreIncrementAnimationHash = Animator.StringToHash("ScoreIncrement");
-        private readonly int _timeScaleAnimationHash = Animator.StringToHash("TimeScale");
 
         // ReSharper disable once InconsistentNaming
         public void ToggleShapeShiftHUD(bool active) => shapeShiftHud.transform.parent.gameObject.SetActive(active);
@@ -36,10 +33,8 @@ namespace Game.UI {
                 _lastScoreMultiplier = v;
                 
                 if (!scoreMultiplierObject.activeSelf) scoreMultiplierObject.SetActive(true);
-                
-                scoreMultiplierAnimator.SetFloat(_timeScaleAnimationHash, 1 / Time.timeScale);
-                scoreMultiplierAnimator.Play(_scoreIncrementAnimationHash);
-                
+
+                scoreMultiplierObject.transform.DOScale(1, .2f).OnComplete(() => scoreMultiplierObject.transform.DOScale(.7f, .8f));
                 scoreMultiplierText.SetText("<size=80%>x</size>" + _lastScoreMultiplier);
             }
         }

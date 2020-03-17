@@ -1,4 +1,5 @@
 using System.Collections;
+using DG.Tweening;
 using Game.UI;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -36,6 +37,7 @@ namespace Game {
                 Destroy(gameObject);
 
             Instance = this;
+            DOTween.Init();
         }
 
         void Update() {
