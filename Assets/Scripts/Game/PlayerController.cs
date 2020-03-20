@@ -1,17 +1,19 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using Audio;
 using Game.Level;
 using UnityEngine;
 
 namespace Game {
     public class PlayerController : MonoBehaviour {
 
+        [SerializeField] private float initialFadeInDelay;
+        [SerializeField] private float initialFadeInDuration;
+        
         [SerializeField] private Shape defaultShape = Shape.Bear;
         [SerializeField] private List<ShapeProperty> shapeProperties;
         
-        [SerializeField] private CameraController cameraController;
-
         private Shape _currentShape;
         private int _shapeCount;
         private Dictionary<Shape, SerializedShapeProps> _shapes;
@@ -31,19 +33,24 @@ namespace Game {
             _transitionPropertyBlock = new MaterialPropertyBlock();
         }
     
-        void Start() {
+        IEnumerator Start() {
             UpdateShape(_currentShape, true);
+            
+            yield return FadeOut(0);
+            yield return new WaitForSecondsRealtime(initialFadeInDelay);
+            yield return FadeIn(initialFadeInDuration);
         }
         
         #region SHAPE_SHIFTING
 
         public IEnumerator ShapeShift(int value, float lockDuration) {
-
             var transitionDuration = lockDuration / 2f;
+            
+            AudioManager.Instance.PlayOnShapeshiftSFX();
 
             yield return FadeOut(transitionDuration);
             UpdateShape(_currentShape, false);
-        
+
             if (value == 1 && (int) _currentShape == _shapeCount - 1)
                 _currentShape = 0;
             else if (value == -1 && (int) _currentShape == 0)
@@ -58,11 +65,11 @@ namespace Game {
         void UpdateShape(Shape shape, bool active) {
             if (_shapes.TryGetValue(shape, out var v)) {
                 v.shapeObject.SetActive(active);
-                if (active)
-                    cameraController.UpdateCameraTarget(v.shapeObject.transform);
+//                if (active)
+//                    cameraController.UpdateCameraTarget(v.shapeObject.transform);
             }
         }
-
+        
         private IEnumerator FadeOut(float duration) {
             var time = 0f;
             if (_shapes.TryGetValue(_currentShape, out var fadeOut)) {
@@ -98,6 +105,17 @@ namespace Game {
                 fadeIn.renderer.SetPropertyBlock(_transitionPropertyBlock);
             }
         }
+
+        public void DisableCurrentShape() {
+            if (_shapes.TryGetValue(_currentShape, out var v)) {
+                var audioSource = v.shapeObject.GetComponentInChildren<AudioSource>();
+                if (audioSource != null) audioSource.Stop();
+
+                var animator = v.shapeObject.GetComponentInChildren<Animator>();
+                if (animator != null) animator.enabled = false;
+            }
+        }
+        
         
         #endregion
 
@@ -108,10 +126,13 @@ namespace Game {
 
             var obstacle = other.transform.GetComponentInParent<Obstacle>();
             if (obstacle != null) {
-                if (!obstacle.TryBypass(_currentShape))
+                if (!obstacle.TryBypass(_currentShape)) {
+                    AudioManager.Instance.PlayOnHitObstacleSFX();
                     GameManager.Instance.GameOver();
-                else
+                } else {
+                    AudioManager.Instance.PlayOnBypassObstacleSFX();
                     obstacle.DestroyParts();
+                }
             } else {
                 Debug.Log($"Failed to find Obstacle component in {other}");
                 GameManager.Instance.GameOver();

@@ -16,50 +16,35 @@ namespace Firebase {
 
         private string _userId = String.Empty;
         
-        private const string REFRESH_TOKEN = "REFRESH_TOKEN";
-        private const string ID_TOKEN = "ID_TOKEN";
-        private const string EXPIRES_IN = "EXPIRES_IN";
-        private const string REFRESHED_AT = "REFRESHED_AT";
-        private const string USER_ID = "USER_ID";
-        private const int DEFAULT_TIMEOUT = 10;
+        private const int DefaultTimeout = 10;
         
-        private const string FMT = "O";
-
-        void Awake() {
-            
+        private readonly string FMT = "O";
+        
+        private void OnEnable() {
             if (Instance != null) {
                 Destroy(gameObject);
+                return;
             }
 
             Instance = this;
             DontDestroyOnLoad(gameObject);
+            
+            _auth = FirebaseAuth.Instance;
+            _database = FirebaseDatabase.Instance;
+
+            Authenticate();
         }
         
-        void Start() {
-           _auth = FirebaseAuth.Instance;
-           _database = FirebaseDatabase.Instance;
+        private string DateTimeToString(DateTime d) => d.ToString(FMT);
 
-           Authenticate();
-        }
+        private DateTime StringToDateTime(string s) => DateTime.ParseExact(s, FMT, CultureInfo.InvariantCulture);
 
-        private string DateTimeToString(DateTime d) {
-            var v = d.ToString(FMT);
-            Debug.Log($"{d} => {v}");
-            return v;
-        }
-
-        private DateTime StringToDateTime(string s) {
-            var v = DateTime.ParseExact(s, FMT, CultureInfo.InvariantCulture);
-            Debug.Log($"{s} => {v}");
-            return v;
-        }
-
-        void Authenticate() {
-            var savedRefreshToken = PlayerPrefs.GetString(REFRESH_TOKEN);
-            var savedIdToken = PlayerPrefs.GetString(ID_TOKEN);
-            var savedExpiresIn = PlayerPrefs.GetString(EXPIRES_IN);
-            var savedRefreshedAt = PlayerPrefs.GetString(REFRESHED_AT);
-            var savedUserId = PlayerPrefs.GetString(USER_ID);
+        public void Authenticate(Action<bool> onComplete = null) {
+            var savedRefreshToken = PlayerPrefs.GetString(SavedKeys.RefreshToken);
+            var savedIdToken = PlayerPrefs.GetString(SavedKeys.IdToken);
+            var savedExpiresIn = PlayerPrefs.GetString(SavedKeys.ExpiresIn);
+            var savedRefreshedAt = PlayerPrefs.GetString(SavedKeys.RefreshedAt);
+            var savedUserId = PlayerPrefs.GetString(SavedKeys.UserId);
             
             if (!string.IsNullOrWhiteSpace(savedRefreshToken) && !string.IsNullOrWhiteSpace(savedIdToken) &&
                 !string.IsNullOrWhiteSpace(savedExpiresIn) && !string.IsNullOrWhiteSpace(savedRefreshedAt) &&
@@ -73,55 +58,57 @@ namespace Firebase {
             } else {
                 _auth.SignInAnonymously(10, res => {
                     if (res.success) {
-                        PlayerPrefs.SetString(REFRESH_TOKEN, res.data.RefreshToken);
-                        PlayerPrefs.SetString(ID_TOKEN, res.data.IdToken);
-                        PlayerPrefs.SetString(EXPIRES_IN, res.data.ExpiresIn);
-                        PlayerPrefs.SetString(REFRESHED_AT, DateTimeToString(DateTime.Now));
+                        PlayerPrefs.SetString(SavedKeys.RefreshToken, res.data.RefreshToken);
+                        PlayerPrefs.SetString(SavedKeys.IdToken, res.data.IdToken);
+                        PlayerPrefs.SetString(SavedKeys.ExpiresIn, res.data.ExpiresIn);
+                        PlayerPrefs.SetString(SavedKeys.RefreshedAt, DateTimeToString(DateTime.Now));
                         
-                        _auth.FetchUserInfo(DEFAULT_TIMEOUT, data => {
+                        _auth.FetchUserInfo(DefaultTimeout, data => {
                             if (data.success) {
                                 _userId = data.data.FirstOrDefault()?.localId;
                                 if (!string.IsNullOrWhiteSpace(_userId))
-                                    PlayerPrefs.SetString(USER_ID, _userId);
-                                
+                                    PlayerPrefs.SetString(SavedKeys.UserId, _userId);
                                 PlayerPrefs.Save();
+                                
                                 Debug.Log($"Successfully logged-in [{_userId}]");
-                            } else
+                                onComplete?.Invoke(true);
+                            } else {
                                 Debug.LogError("Authentication failure : failed to fetch UserInfo");
+                                onComplete?.Invoke(false);
+                            }
                         });
-                    } else
+                    } else {
                         Debug.LogError("Authentication failure: failed to SignIn");
+                        onComplete?.Invoke(false);
+                    }
                 });
             }
         }
 
-        public void AddScoreEntry(ScoreEntry entry) {
-
-            if (!_auth.IsSignedIn) {
-                Debug.LogError("AddScoreEntry failed : user is not signed in");
-                return;
-            }
-            
+        public void AddScoreEntry(ScoreEntry entry, Action onSuccess, Action onError) {
             var userScoresRef = _database.GetReference("user-scores/" + _userId);
             userScoresRef.Push(null, 10, push => {
                 if (push.success){
                     var scoreEntryRef = _database.GetReference("user-scores/" + _userId + "/" + push.data);
-                    scoreEntryRef.SetRawJsonValueAsync(JsonUtility.ToJson(entry), DEFAULT_TIMEOUT,set => {
+                    scoreEntryRef.SetRawJsonValueAsync(JsonUtility.ToJson(entry), DefaultTimeout,set => {
                         if (set.success) {
-                            Debug.Log("Write success");
+                            onSuccess?.Invoke();
                         } else {
-                            Debug.Log("Write failed : " + set.message);
+                            Debug.LogError("Write failed : " + set.message);
+                            onError?.Invoke();
                         }
                     });
-                } else
+                } else {
                     Debug.LogError("Push failed : " + push.message);
+                    onError?.Invoke();
+                }
             });
         }
         
-        public void GetLeaderboard(Action<List<ScoreEntry>> onSuccess, uint limit = 0) {
+        public void GetLeaderboard(Action<List<ScoreEntry>> onSuccess, Action onError, uint limit = 0) {
             
             var reference = _database.GetReference("user-scores");
-            reference.GetValueAsync(DEFAULT_TIMEOUT, res => {
+            reference.GetValueAsync(DefaultTimeout, res => {
                 if (res.success) {
                     var scores = new List<ScoreEntry>();
                     
@@ -135,9 +122,25 @@ namespace Firebase {
                     var sortedLeaderboard = scores.OrderByDescending(s => s.score).ToList();
                     onSuccess?.Invoke(limit > 0 ? sortedLeaderboard.Take((int)limit).ToList() : sortedLeaderboard);
                     
-                } else
-                    Debug.Log("Get Leaderboard failed : " + res.message);
+                } else {
+                    Debug.LogError("Get Leaderboard failed : " + res.message);
+                    onError?.Invoke();
+                }
             });
         }
+        
+        public void ClearCache() {
+            PlayerPrefs.SetString(SavedKeys.SavedUsername, string.Empty);
+            PlayerPrefs.SetString(SavedKeys.RefreshToken, string.Empty);
+            PlayerPrefs.SetString(SavedKeys.IdToken, string.Empty);
+            PlayerPrefs.SetString(SavedKeys.ExpiresIn, string.Empty);
+            PlayerPrefs.SetString(SavedKeys.RefreshedAt, string.Empty);
+            PlayerPrefs.SetString(SavedKeys.UserId, string.Empty);
+            PlayerPrefs.Save();
+        }
+
+        public string GetUserId() => _userId;
+
+        public bool IsSignedIn() => _auth.IsSignedIn;
     }
 }

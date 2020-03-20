@@ -26,7 +26,7 @@ Transform:
   m_GameObject: {fileID: 3996209758247964552}
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1.5, y: 1.5, z: 1.5}
+  m_LocalScale: {x: 3, y: 3, z: 3}
   m_Children:
   - {fileID: 407843150457055051}
   m_Father: {fileID: 0}
@@ -45,6 +45,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   bypassingShapes: 02000000
+  _destroyableObstacles: []
 --- !u!1001 &4821399015661200929
 PrefabInstance:
   m_ObjectHideFlags: 0

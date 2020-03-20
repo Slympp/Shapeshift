@@ -5,8 +5,8 @@ namespace Game.Level {
     [RequireComponent(typeof(Rigidbody))]
     public class ExplodableObstacle : MonoBehaviour {
 
-        private readonly Vector2 _minMaxExplodeDuration = new Vector2(0.1f, 0.15f);
-        private readonly Vector2 _minMaxThrust = new Vector2(60, 70);
+        private readonly Vector2 _minMaxExplodeDuration = new Vector2(0.15f, 0.2f);
+        private readonly Vector2 _minMaxThrust = new Vector2(80, 90);
         
         private Rigidbody _rigidbody;
         private float _remainingDuration;

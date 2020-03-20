@@ -1,6 +1,9 @@
 using System.Collections;
+using System.Linq;
 using DG.Tweening;
+using Firebase;
 using Game.UI;
+using TMPro;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -26,18 +29,27 @@ namespace Game {
         
         [SerializeField] private PlayerController playerController;
         [SerializeField] private UIController uiController;
+        [SerializeField] private CameraController cameraController;
 
         private bool _shapeShiftLocked;
+        private bool _rotationDone = true;
+        
         private float _pausedTimeScale = 1;
+        private bool _restarting;
         private float _score;
         
-        private void Awake() {
-            
-            if (Instance != null)
+        void Awake() {
+            if (Instance != null) {
                 Destroy(gameObject);
+                return;
+            }
 
             Instance = this;
             DOTween.Init();
+        }
+
+        void Start() {
+            StartCoroutine(uiController.ToggleBlackBorders(false));
         }
 
         void Update() {
@@ -56,12 +68,14 @@ namespace Game {
             
             _score += Time.deltaTime * speedMultiplier * scoreMultiplier;
             uiController.UpdateScoreText(_score, speedMultiplier);
+            
+            cameraController.PingPong();
         }
 
         void UpdateGameControlInputs() {
             if (InputManager.Pause) {
                 if (IsGameOver) {
-                    RestartGame();
+                    LoadScene("Game");
                 } else {
                     if (IsGamePaused)
                         Resume();
@@ -72,24 +86,26 @@ namespace Game {
         }
 
         void UpdatePlayerInputs() {
-            if (_shapeShiftLocked)
+            if (_shapeShiftLocked || !_rotationDone)
                 return;
 
             if (InputManager.ShapeShiftPrevious) {
                 _shapeShiftLocked = true;
+                _rotationDone = false;
 
                 StartCoroutine(nameof(ShapeShiftLockTimer));
                 StartCoroutine(playerController.ShapeShift(-1, shapeShiftLockDuration));
                 
-                uiController.RotateHUD(false, shapeShiftLockDuration);
+                uiController.RotateShapeShiftHUD(false, shapeShiftLockDuration, () => _rotationDone = true);
 
             } else if (InputManager.ShapeShiftNext) {
                 _shapeShiftLocked = true;
+                _rotationDone = false;
                 
                 StartCoroutine(nameof(ShapeShiftLockTimer));
                 StartCoroutine(playerController.ShapeShift(1, shapeShiftLockDuration));
                 
-                uiController.RotateHUD(true, shapeShiftLockDuration);
+                uiController.RotateShapeShiftHUD(true, shapeShiftLockDuration, () => _rotationDone = true);
             }
         }
 
@@ -116,32 +132,58 @@ namespace Game {
                 IsGameOver = true;
                 Time.timeScale = 0;
                 
-                uiController.ToggleShapeShiftHUD(false);
+                playerController.DisableCurrentShape();
+
+                uiController.ToggleHUD(false);
                 uiController.TogglePausePanel(false);
                 uiController.ToggleGameOverPanel(true);
+                
+                var score = Mathf.RoundToInt(_score);
+                uiController.SetGameOverScore(score);
+                
+                if (FirebaseManager.Instance.IsSignedIn()) {
+                    FirebaseManager.Instance.AddScoreEntry(new ScoreEntry(PlayerPrefs.GetString(SavedKeys.SavedUsername), score),
+                        () => {
+                            FirebaseManager.Instance.GetLeaderboard(
+                                leaderboard => { 
+                                    var position = leaderboard.FindIndex(entry => entry.score == score);
+                                    var percentile = 100f - (float)position / leaderboard.Count * 100f;
+                                    
+                                    uiController.SetGameOverPosition(position + 1, percentile);
+                                    
+                                }, uiController.DisplayConnectionError);
+                        }, uiController.DisplayConnectionError);
+                } else
+                    uiController.DisplayConnectionError();
             }
         }
 
-        public void RestartGame() {
-            SceneManager.LoadScene("Game");
-            Time.timeScale = 1;
+        public void LoadScene(string sceneName) {
+            if (_restarting)
+                return;
+
+            _restarting = true;
+            StartCoroutine(uiController.ToggleBlackBorders(true, () => {
+                Time.timeScale = 1;
+                SceneManager.LoadScene(sceneName);
+            }));
         }
 
-        void Pause() {
+        public void Pause() {
             IsGamePaused = true;
             
             uiController.TogglePausePanel(true);
-            uiController.ToggleShapeShiftHUD(false);
+            uiController.ToggleHUD(false);
 
             _pausedTimeScale = Time.timeScale;
             Time.timeScale = 0;
         }
 
-        void Resume() {
+        public void Resume() {
             IsGamePaused = false;
             
             uiController.TogglePausePanel(false);
-            uiController.ToggleShapeShiftHUD(true);
+            uiController.ToggleHUD(true);
             
             Time.timeScale = _pausedTimeScale;
         }

@@ -1,3 +1,4 @@
+using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
@@ -8,7 +9,7 @@ namespace Game.UI {
 
         [SerializeField] private List<RectTransform> shapeIcons;
         
-        public IEnumerator Rotate(bool rightDirection, float duration) {
+        public IEnumerator Rotate(bool rightDirection, float duration, Action onRotationComplete) {
             var time = 0f;
             var totalDuration = duration * Time.timeScale;
             
@@ -34,6 +35,8 @@ namespace Game.UI {
             transform.rotation = target;
             foreach (var i in icons)
                 i.T.localRotation = i.End;
+            
+            onRotationComplete?.Invoke();
         }
 
         private class ShapeIcon {

@@ -1,18 +1,22 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using UnityEngine;
 using Random = UnityEngine.Random;
 
 namespace Game.Level {
     public class LevelController : MonoBehaviour {
 
+        [Header("Settings")]
         [SerializeField] private bool spawnObstacles = true;
-        [SerializeField] private float baseSpeed = 3;
+        [SerializeField] private float baseSpeed;
         [SerializeField] private int piecesBetweenObstacles;
+        [SerializeField] private Vector2Int dynamicObstacleRange;
         [SerializeField] private float pieceSize;
-        [SerializeField] private int drawDistance;
+        [SerializeField] private int forwardDrawDistance;
+        [SerializeField] private int backwardDrawDistance;
         
         [Header("Pieces")]
-        [SerializeField] private List<GameObject> groundPieces;
+        [SerializeField] private List<GameObject> grounds;
         [SerializeField] private List<Obstacle> obstacles;
         [SerializeField] private List<ParallaxBackgroundLayer> parallaxBackgroundLayer;
 
@@ -20,42 +24,48 @@ namespace Game.Level {
         private int _remainingPiecesBeforeObstacle;
 
         void Start() {
-            _remainingPiecesBeforeObstacle = piecesBetweenObstacles;
+            _remainingPiecesBeforeObstacle = GetPiecesBeforeNextObstacle();
             
-            for (var i = -1; i < drawDistance; i++)
+            for (var i = backwardDrawDistance; i < forwardDrawDistance; i++)
                 _instantiatedPieces?.Add(SpawnGround(i * pieceSize));
         }
 
         void Update() {
+
+            if (GameManager.Instance.IsGameOver || GameManager.Instance.IsGamePaused)
+                return;
+            
             MoveBackground(baseSpeed * Time.deltaTime * Vector3.back);
         }
 
         private void FixedUpdate() {
-            MovePieces(baseSpeed * Time.deltaTime * Vector3.back);
+            
+            if (GameManager.Instance.IsGameOver || GameManager.Instance.IsGamePaused)
+                return;
+            
+            MoveGround(baseSpeed * Time.deltaTime * Vector3.back);
         }
 
-        private void MovePieces(Vector3 movement) {
+        private void MoveGround(Vector3 movement) {
             foreach (var p in _instantiatedPieces) {
-
-                if (p.position.z <= -pieceSize * 2) {
+                if (p.position.z <= pieceSize * (backwardDrawDistance - 1)) {
 
                     if (p.childCount > 0) {
                         // TODO: Move back obstacles to pool
-                        foreach (Transform t in p) {
-                            Destroy(t.gameObject);
-                        }
+                        foreach (Transform t in p)
+                            if (t.CompareTag("Obstacle")) 
+                                Destroy(t.gameObject);
                     }
 
                     _remainingPiecesBeforeObstacle--;
                     if (_remainingPiecesBeforeObstacle <= 0) {
-                        _remainingPiecesBeforeObstacle = piecesBetweenObstacles;
+                        _remainingPiecesBeforeObstacle = GetPiecesBeforeNextObstacle();
                         if (spawnObstacles)
                             SpawnObstacle(p);
                     }
                     
-                    p.position += new Vector3(0, 0, drawDistance * pieceSize);
+                    p.position += new Vector3(0, 0, (forwardDrawDistance - backwardDrawDistance) * pieceSize);
                 }
-
                 p.position += movement;
             }
         }
@@ -65,13 +75,11 @@ namespace Game.Level {
                 l.ApplyMovement(movement);
         }
 
-        // Increase speed exponentially while _gameDuration belongs to [speedIncreaseFrame.x, speedIncreaseFrame.y]
-
         Transform SpawnGround(float position) {
-            if (groundPieces == null || groundPieces.Count == 0)
+            if (grounds == null || grounds.Count == 0)
                 return null;
 
-            var piece = groundPieces[Random.Range(0, groundPieces.Count)];
+            var piece = grounds[Random.Range(0, grounds.Count)];
             return Instantiate(piece, piece.transform.position + new Vector3(0, 0, position), Quaternion.identity, transform)?.transform;
         }
 
@@ -81,5 +89,13 @@ namespace Game.Level {
             var position = groundAnchor.transform.position;
             obstacle.transform.localPosition = prefab.transform.position - new Vector3(position.x, position.y, Random.Range(-pieceSize / 2, pieceSize / 2));
         }
+
+        int GetPiecesBeforeNextObstacle() => piecesBetweenObstacles + Random.Range(dynamicObstacleRange.x, dynamicObstacleRange.y);
+    }
+
+    [Serializable]
+    class Vector2Int {
+        public int x;
+        public int y;
     }
 }

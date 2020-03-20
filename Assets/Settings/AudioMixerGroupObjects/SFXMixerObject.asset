@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 297579458a609f5429f603dc3a132a5a, type: 3}
+  m_Name: SFXMixerObject
+  m_EditorClassIdentifier: 
+  mixer: {fileID: 24100000, guid: 99f3bc72fa9b1184dba4ed69c4da0f6e, type: 2}
+  _mixerName: SFX
+  maxVolume: -8
+  minVolume: -80
